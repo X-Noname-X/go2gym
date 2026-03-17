@@ -32,6 +32,7 @@ from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
 from .a1.a1_stand_config import A1StandCfg, A1StandCfgPPO
 from .go2.go2_stand_config import Go2StandCfg, Go2StandCfgPPO
 from .go2.go2_config import Go2RoughCfg, Go2RoughCfgPPO
+from .go2.go2_run_config import Go2RunCfg, Go2RunCfgPPO
 
 from legged_gym.envs.a1.a1_config import A1RoughCfg, A1RoughCfgPPO
 from .base.legged_robot import LeggedRobot
@@ -51,6 +52,7 @@ from legged_gym.utils.task_registry import task_registry
 task_registry.register("a1_stand", LeggedRobot, A1StandCfg(), A1StandCfgPPO())
 task_registry.register("go2_stand", LeggedRobot, Go2StandCfg(), Go2StandCfgPPO())
 task_registry.register("go2", LeggedRobot, Go2RoughCfg(), Go2RoughCfgPPO())
+task_registry.register("go2_run", LeggedRobot, Go2RunCfg(), Go2RunCfgPPO())
 
 task_registry.register( "anymal_c_rough", Anymal, AnymalCRoughCfg(), AnymalCRoughCfgPPO() )
 task_registry.register( "anymal_c_flat", Anymal, AnymalCFlatCfg(), AnymalCFlatCfgPPO() )
