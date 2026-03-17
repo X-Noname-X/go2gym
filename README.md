@@ -1,3 +1,14 @@
+# go2gym
+This project is modified based on legged_gym (https://github.com/NVIDIA/legged_gym).
+
+## Copyright & License
+Original Copyright:
+- Copyright (c) 2021, ETH Zurich, Nikita Rudin
+- Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES
+
+This project is distributed under the BSD 3-Clause License, see the LICENSE file for full terms.
+Modifications to the original code are made for personal/academic use, and no endorsement from NVIDIA or ETH Zurich is claimed.
+
 # Isaac Gym Environments for Legged Robots #
 This repository provides the environment used to train ANYmal (and other robots) to walk on rough terrain using NVIDIA's Isaac Gym.
 It includes all components needed for sim-to-real transfer: actuator network, friction & mass randomization, noisy observations and random pushes during training.  
