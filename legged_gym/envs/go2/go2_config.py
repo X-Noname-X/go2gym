@@ -27,13 +27,13 @@ class Go2Cfg(LeggedRobotCfg):
         action_scale = 0.25
         decimation = 4
     
-    # class commands(LeggedRobotCfg.commands):
-    #     heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
-    #     class ranges(LeggedRobotCfg.commands.ranges):
-    #         lin_vel_x   = [0.5, 1.0]   # 向前跑 0.5~1.0 m/s
-    #         lin_vel_y   = [0.0, 0.0]   # 不侧移
-    #         ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
-    #         heading     = [0.0, 0.0]
+    class commands(LeggedRobotCfg.commands):
+        heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
+        class ranges(LeggedRobotCfg.commands.ranges):
+            lin_vel_x   = [0.5, 1.0]   # 向前 0.1~1.0 m/s
+            lin_vel_y   = [0.0, 0.0]   # 不侧移
+            ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
+            heading     = [0.0, 0.0]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
