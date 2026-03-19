@@ -1,9 +1,9 @@
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
-class Go2RoughCfg(LeggedRobotCfg):
+class Go2Cfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.30]          # Go2 站立高度约 0.30 m（A1 是 0.42）
+        pos = [0.0, 0.0, 0.30]          # Go2 站立高度约 0.30m
         default_joint_angles = {
             'FL_hip_joint':  0.1,   'RL_hip_joint':  0.1,
             'FR_hip_joint': -0.1,   'RR_hip_joint': -0.1,
@@ -22,43 +22,54 @@ class Go2RoughCfg(LeggedRobotCfg):
 
     class control(LeggedRobotCfg.control):
         control_type = 'P'
-        stiffness = {'joint': 40.}   # Go2 机身 6.9 kg，比 A1 重，需要更大刚度
+        stiffness = {'joint': 40.}
         damping   = {'joint': 1.0}
         action_scale = 0.25
         decimation = 4
+    
+    # class commands(LeggedRobotCfg.commands):
+    #     heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
+    #     class ranges(LeggedRobotCfg.commands.ranges):
+    #         lin_vel_x   = [0.5, 1.0]   # 向前跑 0.5~1.0 m/s
+    #         lin_vel_y   = [0.0, 0.0]   # 不侧移
+    #         ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
+    #         heading     = [0.0, 0.0]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
         name = "go2"
-        foot_name = "foot"                          # URDF 中 foot link 的名字
+        foot_name = "foot"                          # URDF中foot link的名字
         penalize_contacts_on = ["thigh", "calf"]
         terminate_after_contacts_on = ["base"]
         self_collisions = 1
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.30                   # 与 init pos[2] 一致
+        base_height_target = 0.32
         class scales(LeggedRobotCfg.rewards.scales):
-            # 行走核心奖励（继承默认值，按需调整）
+            # 行走核心奖励
             tracking_lin_vel =  1.0
             tracking_ang_vel =  0.5
             feet_air_time    =  1.0
+            base_height      =  -5.0
             # 稳定性惩罚
             lin_vel_z   = -2.0
             ang_vel_xy  = -0.05
-            orientation = -0.2                      # Go2 重心偏前，适当加大
+            orientation = -1.0     # Go2 重心偏前，适当加大
             # 能耗/平滑惩罚
             torques     = -0.0002
             dof_vel     = -0.0
             dof_acc     = -2.5e-7
             action_rate = -0.01
             collision   = -1.0
+            torques = -0.0002
             dof_pos_limits = -10.0
 
-class Go2RoughCfgPPO(LeggedRobotCfgPPO):
+
+class Go2CfgPPO(LeggedRobotCfgPPO):
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
     class runner(LeggedRobotCfgPPO.runner):
         run_name = ''
-        experiment_name = 'go2_walk'
+        experiment_name = 'go2'
         max_iterations = 1500

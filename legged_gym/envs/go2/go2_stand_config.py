@@ -66,7 +66,6 @@ class Go2StandCfg(LeggedRobotCfg):
             dof_vel = -0.01
             dof_acc = -2.5e-7
             action_rate = -0.01
-            dof_pos_limits = -10.0
 
             # --- 站立时保持默认姿态 ---
             stand_still = -1.0        # 零指令时惩罚关节偏离默认值
