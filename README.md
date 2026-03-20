@@ -9,6 +9,50 @@ Original Copyright:
 This project is distributed under the BSD 3-Clause License, see the LICENSE file for full terms.
 Modifications to the original code are made for personal/academic use, and no endorsement from NVIDIA or ETH Zurich is claimed.
 
+---
+
+## Go2 训练模型
+
+训练产生的中间 checkpoint 已通过 `.gitignore` 排除，仓库只保留每阶段的最终模型，存放在 `policy/` 根目录。
+
+| 目录 | 阶段 | 迭代数 | 说明 |
+|------|------|--------|------|
+| `policy/go2/random_walk/` | 阶段一 | 1500 | 随机方向行走，速度 -1.0~1.0 m/s |
+| `policy/go2/forward_walk/` | 阶段二 | 3000 | 仅向前行走，速度 0.5~1.0 m/s |
+
+> 时间戳目录（`Mar*` 等）已通过 `.gitignore` 排除，只保留语义命名目录。
+
+### 播放模型
+
+```bash
+# 播放随机行走模型
+python legged_gym/scripts/play.py --task go2 --load_run random_walk --checkpoint 1500
+
+# 播放向前行走模型
+python legged_gym/scripts/play.py --task go2 --load_run forward_walk --checkpoint 3000
+```
+
+### 接续训练
+
+```bash
+# 从阶段一 model_1500 接续训练
+python legged_gym/scripts/train.py --task go2 --resume --load_run random_walk --checkpoint 1500
+
+# 从阶段二 model_3000 接续训练
+python legged_gym/scripts/train.py --task go2 --resume --load_run forward_walk --checkpoint 3000
+```
+
+### 保存新阶段模型
+
+训练完成后，创建语义命名目录并复制最终 checkpoint：
+
+```bash
+mkdir -p policy/go2/<阶段描述>
+cp policy/go2/<时间戳目录>/model_<迭代数>.pt policy/go2/<阶段描述>/model_<迭代数>.pt
+```
+
+---
+
 # Isaac Gym Environments for Legged Robots #
 This repository provides the environment used to train ANYmal (and other robots) to walk on rough terrain using NVIDIA's Isaac Gym.
 It includes all components needed for sim-to-real transfer: actuator network, friction & mass randomization, noisy observations and random pushes during training.  
