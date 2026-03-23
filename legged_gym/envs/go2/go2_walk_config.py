@@ -1,4 +1,6 @@
-class Go2Cfg(LeggedRobotCfg):
+from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+
+class Go2WalkCfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
         pos = [0.0, 0.0, 0.30]          # Go2 站立高度约 0.30m
@@ -24,6 +26,14 @@ class Go2Cfg(LeggedRobotCfg):
         damping   = {'joint': 1.0}
         action_scale = 0.25
         decimation = 4
+    
+    class commands(LeggedRobotCfg.commands):
+        heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
+        class ranges(LeggedRobotCfg.commands.ranges):
+            lin_vel_x   = [0.5, 1.0]   # 向前 0.5~1.0 m/s
+            lin_vel_y   = [0.0, 0.0]   # 不侧移
+            ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
+            heading     = [0.0, 0.0]
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
@@ -55,7 +65,7 @@ class Go2Cfg(LeggedRobotCfg):
             dof_pos_limits = -10.0
 
 
-class Go2CfgPPO(LeggedRobotCfgPPO):
+class Go2WalkCfgPPO(LeggedRobotCfgPPO):
     class algorithm(LeggedRobotCfgPPO.algorithm):
         entropy_coef = 0.01
     class runner(LeggedRobotCfgPPO.runner):

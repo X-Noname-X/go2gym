@@ -57,4 +57,5 @@ __pycache__
 
 # Training checkpoints (ignore date-stamped runs, keep descriptively named dirs)
 policy/go2/[A-Z][a-z][a-z][0-9]*/
+policy/go2_gait/[A-Z][a-z][a-z][0-9]*/
 logs/

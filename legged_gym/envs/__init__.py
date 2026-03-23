@@ -32,12 +32,20 @@ from legged_gym import LEGGED_GYM_ROOT_DIR, LEGGED_GYM_ENVS_DIR
 from .base.legged_robot import LeggedRobot
 
 from .go2.go2_stand_config import Go2StandCfg, Go2StandCfgPPO
-from .go2.go2_config import Go2Cfg, Go2CfgPPO
+from .go2.go2_walk_config import Go2WalkCfg, Go2WalkCfgPPO
+
+from .go2.go2_config import (Go2Cfg, Go2CfgPPO,
+                              Go2TrotCfg, Go2PaceCfg, Go2BoundCfg, Go2PronkCfg,
+                              Go2GaitCfgPPO)
 
 
 import os
 from legged_gym.utils.task_registry import task_registry
 
 task_registry.register("go2_stand", LeggedRobot, Go2StandCfg(), Go2StandCfgPPO())
-task_registry.register("go2", LeggedRobot, Go2Cfg(), Go2CfgPPO())
+task_registry.register("go2",       LeggedRobot, Go2WalkCfg(),   Go2WalkCfgPPO())
+task_registry.register("go2_trot",  LeggedRobot, Go2TrotCfg(),   Go2GaitCfgPPO())
+task_registry.register("go2_pace",  LeggedRobot, Go2PaceCfg(),   Go2GaitCfgPPO())
+task_registry.register("go2_bound", LeggedRobot, Go2BoundCfg(),  Go2GaitCfgPPO())
+task_registry.register("go2_pronk", LeggedRobot, Go2PronkCfg(),  Go2GaitCfgPPO())
 

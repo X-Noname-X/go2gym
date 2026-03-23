@@ -77,6 +77,13 @@ class LeggedRobotCfg(BaseConfig):
             ang_vel_yaw = [-1, 1]    # min max [rad/s]
             heading = [-3.14, 3.14]
 
+    class gait:
+        frequency = 3.0  # 步态周期频率 [Hz]
+        phase     = 0.5  # FL 相位偏移 [0,1]，trot=0.5
+        offset    = 0.0  # FR 相位偏移 [0,1]
+        bound     = 0.0  # RL 相位偏移 [0,1]
+        duration  = 0.5  # 支撑相占比 [0,1]
+
     class init_state:
         pos = [0.0, 0.0, 1.] # x,y,z [m]
         rot = [0.0, 0.0, 0.0, 1.0] # x,y,z,w [quat]
@@ -152,6 +159,9 @@ class LeggedRobotCfg(BaseConfig):
         soft_torque_limit = 1.
         base_height_target = 1.
         max_contact_force = 100. # forces above this value are penalized
+        kappa_gait_probs = 0.07  # von Mises 平滑系数
+        gait_force_sigma = 50.0  # 接触力跟踪灵敏度 [N^2]
+        gait_vel_sigma   = 0.5   # 足端速度跟踪灵敏度 [(m/s)^2]
 
     class normalization:
         class obs_scales:

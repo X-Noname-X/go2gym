@@ -3,7 +3,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 class Go2Cfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.30]          # Go2 站立高度约 0.30m
+        pos = [0.0, 0.0, 0.34]          # Go2 正常站立高度
         default_joint_angles = {
             'FL_hip_joint':  0.1,   'RL_hip_joint':  0.1,
             'FR_hip_joint': -0.1,   'RR_hip_joint': -0.1,
@@ -18,19 +18,20 @@ class Go2Cfg(LeggedRobotCfg):
         measure_heights = False
 
     class env(LeggedRobotCfg.env):
-        num_observations = 48   # 去掉高度图后必须同步修改
+        num_observations = 52   # 48 基础观测 + 4 clock inputs（步态相位信号）
 
     class control(LeggedRobotCfg.control):
         control_type = 'P'
-        stiffness = {'joint': 80.}
-        damping   = {'joint': 2.0}
-        action_scale = 0.5    # 关节摆幅
+        stiffness = {'joint': 40.}     # 降低刚度，步态更自然
+        damping   = {'joint': 1.0}
+        action_scale = 0.25            # 减小步幅，避免迈步过宽
         decimation = 4
     
     class commands(LeggedRobotCfg.commands):
+        curriculum = True
         heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x   = [2.0, 5.0]
+            lin_vel_x   = [0.8, 1.5]   
             lin_vel_y   = [0.0, 0.0]   # 不侧移
             ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
             heading     = [0.0, 0.0]
@@ -43,26 +44,36 @@ class Go2Cfg(LeggedRobotCfg):
         terminate_after_contacts_on = ["base"]
         self_collisions = 1
 
+    class gait(LeggedRobotCfg.gait):
+        pass  # 默认 trot：phase=0.5, offset=0.0, bound=0.0
+
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.32
+        base_height_target = 0.34      # 与 init_state 对齐
+        kappa_gait_probs = 0.07
+        gait_force_sigma = 50.0
+        gait_vel_sigma   = 0.5
+        only_positive_rewards = False  # 步态奖励本身为负值，不能裁剪为0
         class scales(LeggedRobotCfg.rewards.scales):
-            # 行走核心奖励
-            tracking_lin_vel =  1.0
+            tracking_lin_vel =  1.5
             tracking_ang_vel =  0.5
-            feet_air_time    =  2.0
-            base_height      =  -5.0
+            feet_air_time    =  1.5
+            base_height      =  -3.5
+            # 步态接触奖励
+            tracking_contacts_shaped_force = 1.0
+            tracking_contacts_shaped_vel   = 1.0
             # 稳定性惩罚
             lin_vel_z   = -2.0
-            ang_vel_xy  = -0.05
-            orientation = -1.0     # Go2 重心偏前，适当加大
+            ang_vel_xy  = -0.5
+            orientation = -1.0
             # 能耗/平滑惩罚
-            torques     = -0.0005
+            torques     = -0.0002
             dof_vel     = -0.0
-            dof_acc     = -1e-7
+            dof_pos     = -0.0
+            hip_pos     = -0.8    # 专项惩罚髋关节外展，不影响大腿/小腿运动
+            dof_acc     = -2.5e-7
             action_rate = -0.01
             collision   = -1.0
-            torques = -0.0002
             dof_pos_limits = -10.0
 
 class Go2CfgPPO(LeggedRobotCfgPPO):
@@ -72,3 +83,44 @@ class Go2CfgPPO(LeggedRobotCfgPPO):
         run_name = ''
         experiment_name = 'go2'
         max_iterations = 3000
+
+
+# ────────────── 单步态训练 Cfg ──────────────
+# 步态参数对照：
+#   trot  (对角步): phase=0.5, offset=0.0, bound=0.0
+#   pace  (侧  步): phase=0.0, offset=0.5, bound=0.0
+#   bound (跳  步): phase=0.0, offset=0.0, bound=0.5
+#   pronk (全腾跳): phase=0.5, offset=0.5, bound=0.5
+
+class Go2TrotCfg(Go2Cfg):
+    class gait(Go2Cfg.gait):
+        phase  = 0.5
+        offset = 0.0
+        bound  = 0.0
+
+class Go2PaceCfg(Go2Cfg):
+    class gait(Go2Cfg.gait):
+        phase  = 0.0
+        offset = 0.5
+        bound  = 0.0
+
+class Go2BoundCfg(Go2Cfg):
+    class gait(Go2Cfg.gait):
+        phase  = 0.0
+        offset = 0.0
+        bound  = 0.5
+
+class Go2PronkCfg(Go2Cfg):
+    class gait(Go2Cfg.gait):
+        phase  = 0.5
+        offset = 0.5
+        bound  = 0.5
+
+
+class Go2GaitCfgPPO(LeggedRobotCfgPPO):
+    class algorithm(LeggedRobotCfgPPO.algorithm):
+        entropy_coef = 0.01
+    class runner(LeggedRobotCfgPPO.runner):
+        run_name = ''
+        experiment_name = 'go2_gait'
+        max_iterations = 1000

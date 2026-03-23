@@ -109,6 +109,7 @@ class LeggedRobot(BaseTask):
         """
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
@@ -120,6 +121,7 @@ class LeggedRobot(BaseTask):
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
         self._post_physics_step_callback()
+        self._step_contact_targets()
 
         # compute observations, rewards, resets, ...
         self.check_termination()
@@ -171,6 +173,7 @@ class LeggedRobot(BaseTask):
         self.last_actions[env_ids] = 0.
         self.last_dof_vel[env_ids] = 0.
         self.feet_air_time[env_ids] = 0.
+        self.gait_indices[env_ids] = 0.
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
         # fill extras
@@ -221,6 +224,9 @@ class LeggedRobot(BaseTask):
         if self.cfg.terrain.measure_heights:
             heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.) * self.obs_scales.height_measurements
             self.obs_buf = torch.cat((self.obs_buf, heights), dim=-1)
+        # add gait clock inputs only when config expects them (num_observations > 48)
+        if self.cfg.env.num_observations > 48:
+            self.obs_buf = torch.cat((self.obs_buf, self.clock_inputs), dim=-1)
         # add noise if needed
         if self.add_noise:
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
@@ -475,6 +481,10 @@ class LeggedRobot(BaseTask):
         noise_vec[36:48] = 0. # previous actions
         if self.cfg.terrain.measure_heights:
             noise_vec[48:235] = noise_scales.height_measurements* noise_level * self.obs_scales.height_measurements
+        else:
+            # 对于 go2（无高度图），索引 48-52 是 clock inputs，不加噪声
+            if len(noise_vec) > 48:
+                noise_vec[48:] = 0.  # clock inputs 不加噪声
         return noise_vec
 
     #----------------------------------------
@@ -485,9 +495,11 @@ class LeggedRobot(BaseTask):
         actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         net_contact_forces = self.gym.acquire_net_contact_force_tensor(self.sim)
+        rigid_body_state = self.gym.acquire_rigid_body_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_net_contact_force_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
 
         # create some wrapper tensors for different slices
         self.root_states = gymtorch.wrap_tensor(actor_root_state)
@@ -497,6 +509,7 @@ class LeggedRobot(BaseTask):
         self.base_quat = self.root_states[:, 3:7]
 
         self.contact_forces = gymtorch.wrap_tensor(net_contact_forces).view(self.num_envs, -1, 3) # shape: num_envs, num_bodies, xyz axis
+        self.rigid_body_state = gymtorch.wrap_tensor(rigid_body_state).view(self.num_envs, self.num_bodies, 13)
 
         # initialize some data used later on
         self.common_step_counter = 0
@@ -540,6 +553,14 @@ class LeggedRobot(BaseTask):
                 if self.cfg.control.control_type in ["P", "V"]:
                     print(f"PD gain of joint {name} were not defined, setting them to zero")
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+
+        # 步态相位 buffers（供 _step_contact_targets 使用）
+        self.gait_indices = torch.zeros(self.num_envs, dtype=torch.float,
+                                        device=self.device, requires_grad=False)
+        self.clock_inputs = torch.zeros(self.num_envs, 4, dtype=torch.float,
+                                        device=self.device, requires_grad=False)
+        self.desired_contact_states = torch.zeros(self.num_envs, 4, dtype=torch.float,
+                                                  device=self.device, requires_grad=False)
 
     def _prepare_reward_function(self):
         """ Prepares a list of reward functions, whcih will be called to compute the total reward.
@@ -812,6 +833,35 @@ class LeggedRobot(BaseTask):
 
         return heights.view(self.num_envs, -1) * self.terrain.cfg.vertical_scale
 
+    def _step_contact_targets(self):
+        """ 根据 cfg.gait 中的固定参数更新步态相位、clock inputs 和期望接触状态。 """
+        g = self.cfg.gait
+        frequency = g.frequency
+        phase     = g.phase
+        offset    = g.offset
+        bound     = g.bound
+        duration  = g.duration
+
+        # 更新全局步态相位 [0, 1)
+        self.gait_indices = torch.remainder(
+            self.gait_indices + self.dt * frequency, 1.0)
+
+        # 各腿原始相位（FL, FR, RL, RR），mod 1 归一化
+        raw = [
+            torch.remainder(self.gait_indices + phase + offset + bound, 1.0),  # FL
+            torch.remainder(self.gait_indices + offset,                  1.0),  # FR
+            torch.remainder(self.gait_indices + bound,                   1.0),  # RL
+            torch.remainder(self.gait_indices + phase,                   1.0),  # RR
+        ]
+
+        # clock inputs: sin(2π * raw_phase)，直接用原始相位
+        for i in range(4):
+            self.clock_inputs[:, i] = torch.sin(2 * np.pi * raw[i])
+
+        # 期望接触状态：支撑相(phase < duration) = 1，摆动相 = 0
+        for i in range(4):
+            self.desired_contact_states[:, i] = (raw[i] < duration).float()
+
     #------------ reward functions----------------
     def _reward_lin_vel_z(self):
         # Penalize z axis base linear velocity
@@ -833,6 +883,10 @@ class LeggedRobot(BaseTask):
     def _reward_torques(self):
         # Penalize torques
         return torch.sum(torch.square(self.torques), dim=1)
+
+    def _reward_dof_pos(self):
+        # Penalize dof positions deviating from default
+        return torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
 
     def _reward_dof_vel(self):
         # Penalize dof velocities
@@ -904,3 +958,30 @@ class LeggedRobot(BaseTask):
     def _reward_feet_contact_forces(self):
         # penalize high contact forces
         return torch.sum((torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) -  self.cfg.rewards.max_contact_force).clip(min=0.), dim=1)
+
+    def _reward_tracking_contacts_shaped_force(self):
+        """ 移植自 walk-these-ways：惩罚摆动腿（desired_contact≈0）触地产生的力 """
+        foot_forces = torch.norm(
+            self.contact_forces[:, self.feet_indices, :], dim=-1)
+        reward = 0
+        for i in range(4):
+            reward += -(1 - self.desired_contact_states[:, i]) * (
+                1 - torch.exp(-foot_forces[:, i] ** 2 / self.cfg.rewards.gait_force_sigma))
+        return reward / 4
+
+    def _reward_tracking_contacts_shaped_vel(self):
+        """ 移植自 walk-these-ways：惩罚支撑腿（desired_contact≈1）足端滑动 """
+        foot_velocities = torch.norm(
+            self.rigid_body_state[:, self.feet_indices, 7:10], dim=-1)
+        reward = 0
+        for i in range(4):
+            reward += -(self.desired_contact_states[:, i] * (
+                1 - torch.exp(-foot_velocities[:, i] ** 2 / self.cfg.rewards.gait_vel_sigma)))
+        return reward / 4
+
+    def _reward_hip_pos(self):
+        # 专门惩罚髋关节（每条腿第0个关节，索引0/3/6/9）偏离默认值
+        # 不影响大腿/小腿的正常摆动
+        hip_indices = [0, 3, 6, 9]
+        return torch.sum(torch.square(
+            self.dof_pos[:, hip_indices] - self.default_dof_pos[:, hip_indices]), dim=1)
