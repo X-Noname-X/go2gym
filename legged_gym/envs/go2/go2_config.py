@@ -28,10 +28,10 @@ class Go2Cfg(LeggedRobotCfg):
         decimation = 4
     
     class commands(LeggedRobotCfg.commands):
-        curriculum = True
+        curriculum = False
         heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x   = [0.8, 1.5]   
+            lin_vel_x   = [1.5, 2.0]
             lin_vel_y   = [0.0, 0.0]   # 不侧移
             ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
             heading     = [0.0, 0.0]
@@ -58,7 +58,7 @@ class Go2Cfg(LeggedRobotCfg):
             tracking_lin_vel =  1.5
             tracking_ang_vel =  0.5
             feet_air_time    =  1.5
-            base_height      =  -3.5
+            base_height      =  -5.0
             # 步态接触奖励
             tracking_contacts_shaped_force = 1.0
             tracking_contacts_shaped_vel   = 1.0
@@ -70,7 +70,7 @@ class Go2Cfg(LeggedRobotCfg):
             torques     = -0.0002
             dof_vel     = -0.0
             dof_pos     = -0.0
-            hip_pos     = -0.8    # 专项惩罚髋关节外展，不影响大腿/小腿运动
+            hip_pos     = -1.0    # 专项惩罚髋关节外展，不影响大腿/小腿运动
             dof_acc     = -2.5e-7
             action_rate = -0.01
             collision   = -1.0
@@ -83,7 +83,6 @@ class Go2CfgPPO(LeggedRobotCfgPPO):
         run_name = ''
         experiment_name = 'go2'
         max_iterations = 3000
-
 
 # ────────────── 单步态训练 Cfg ──────────────
 # 步态参数对照：
@@ -115,7 +114,6 @@ class Go2PronkCfg(Go2Cfg):
         phase  = 0.5
         offset = 0.5
         bound  = 0.5
-
 
 class Go2GaitCfgPPO(LeggedRobotCfgPPO):
     class algorithm(LeggedRobotCfgPPO.algorithm):
