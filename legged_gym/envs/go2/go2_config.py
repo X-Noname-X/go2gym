@@ -3,7 +3,7 @@ from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobot
 class Go2Cfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.30]
+        pos = [0.0, 0.0, 0.34]
         default_joint_angles = {
             'FL_hip_joint':  0.1,   'RL_hip_joint':  0.1,
             'FR_hip_joint': -0.1,   'RR_hip_joint': -0.1,
@@ -49,7 +49,7 @@ class Go2Cfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.32
+        base_height_target = 0.34
         kappa_gait_probs = 0.07
         gait_force_sigma = 50.0
         gait_vel_sigma   = 0.5
@@ -58,19 +58,19 @@ class Go2Cfg(LeggedRobotCfg):
             tracking_lin_vel =  2.5
             tracking_ang_vel =  0.5
             feet_air_time    =  2.0
-            base_height      =  -5.0
+            base_height      =  -30.0
             # 步态接触奖励
             tracking_contacts_shaped_force = 1.0
             tracking_contacts_shaped_vel   = 1.0
             # 稳定性惩罚
             lin_vel_z   = -2.0
             ang_vel_xy  = -0.5
-            orientation = -1.0
+            orientation = -5.0
             # 能耗/平滑惩罚
             torques     = -0.0002
             dof_vel     = -0.0
             dof_pos     = -0.0
-            hip_pos     = -2.0    # 专项惩罚髋关节外展，不影响大腿/小腿运动
+            hip_pos     = -10.0    # 专项惩罚髋关节外展，不影响大腿/小腿运动
             dof_acc     = -2.5e-7
             action_rate = -0.01
             collision   = -1.0
@@ -121,4 +121,4 @@ class Go2GaitCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = ''
         experiment_name = 'go2_gait'
-        max_iterations = 1500
+        max_iterations = 500
