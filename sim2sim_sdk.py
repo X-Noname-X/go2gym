@@ -38,6 +38,10 @@ KD           = 1.0
 ACTION_SCALE = 0.25
 COMMAND      = np.array([0.5, 0.0, 0.0])   # [lin_vel_x, lin_vel_y, ang_vel_yaw]
 
+# ─────────── 站立参数 ───────────
+STANDUP_DURATION  = 2.0   # 插值到站立姿态所需秒数
+STABILIZE_DURATION = 1.0  # 到位后等待稳定的秒数
+
 # ─────────── 步态参数（trot，仅 mode=trot 时使用）───────────
 GAIT_FREQ   = 3.0
 GAIT_PHASE  = 0.5
@@ -160,6 +164,42 @@ class Controller:
             cmd.motor_cmd[i].kd  = KD
         self.low_cmd_puber.Write(cmd)
 
+    def _send_standup_cmd(self, target_q_sdk: np.ndarray, kp: float = KP):
+        """发送站立插值指令（不经过 ACTION_SCALE，直接指定目标角度）。"""
+        cmd = LowCmd_default()
+        cmd.head[0] = 0xFE
+        cmd.head[1] = 0xEF
+        for i in range(12):
+            cmd.motor_cmd[i].q   = float(target_q_sdk[i])
+            cmd.motor_cmd[i].dq  = 0.0
+            cmd.motor_cmd[i].tau = 0.0
+            cmd.motor_cmd[i].kp  = kp
+            cmd.motor_cmd[i].kd  = KD
+        self.low_cmd_puber.Write(cmd)
+
+    def _standup(self):
+        """平滑插值到默认站立姿态，然后等待稳定。"""
+        with self._lock:
+            low = self.low_state
+        start_q = np.array([low.motor_state[i].q for i in range(12)])  # SDK 顺序
+
+        steps = int(STANDUP_DURATION / CTRL_DT)
+        print(f"[sim2sim] 站立阶段：{STANDUP_DURATION:.1f}s 插值到默认姿态...")
+        for k in range(steps):
+            alpha = (k + 1) / steps
+            target = (1.0 - alpha) * start_q + alpha * DEFAULT_Q_SDK
+            self._send_standup_cmd(target)
+            time.sleep(CTRL_DT)
+
+        # 稳定等待
+        print(f"[sim2sim] 保持站立，等待 {STABILIZE_DURATION:.1f}s 稳定...")
+        stab_steps = int(STABILIZE_DURATION / CTRL_DT)
+        for _ in range(stab_steps):
+            self._send_standup_cmd(DEFAULT_Q_SDK)
+            time.sleep(CTRL_DT)
+
+        print("[sim2sim] 站立稳定完成，切换到策略控制。")
+
     def run(self):
         print("[sim2sim] 等待仿真器就绪...")
         while True:
@@ -167,6 +207,8 @@ class Controller:
                 if self.low_state is not None and self.high_state is not None:
                     break
             time.sleep(0.01)
+
+        self._standup()
         print("[sim2sim] 开始控制循环...")
 
         step = 0
