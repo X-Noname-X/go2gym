@@ -1,0 +1,7 @@
+date:       2026-03-xx
+config:     Go2WalkCfg
+iterations: 3000
+cmd_range:  lin_vel_x=[0.5, 1.0]
+notes:      前向行走策略
+best_iter:  3000
+exported:   exported/policy_deploy.pt

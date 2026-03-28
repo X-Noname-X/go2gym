@@ -1,0 +1,7 @@
+date:       2026-03-27 15:39
+config:     Go2TrotCfg
+iterations: 1500 → 3000
+cmd_range:  lin_vel_x=[1.5, 2.0]
+notes:      续训 Mar27_12-22-25_ model_1500
+best_iter:  3000
+exported:   (未导出，由 Mar27_18 继续)

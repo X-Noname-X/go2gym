@@ -1,0 +1,8 @@
+date:       2026-03-27 18:02
+config:     Go2TrotCfg
+iterations: 3000 → 3500
+cmd_range:  lin_vel_x=[1.5, 2.0]
+notes:      续训 Mar27_15-39-06_ model_3000；当前最优策略
+best_iter:  3500
+exported:   exported/policy_deploy.pt
+deploy:     go2_trot/deploy -> 本 run exported

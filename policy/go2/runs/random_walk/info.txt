@@ -1,0 +1,7 @@
+date:       2026-03-xx
+config:     Go2WalkCfg
+iterations: 1500
+cmd_range:  lin_vel_x=[-1.0, 1.0]
+notes:      随机行走策略
+best_iter:  1500
+exported:   (未导出)

@@ -9,7 +9,7 @@ Sim2Sim（SDK 版，通用）：支持 walk（48维）和 gait/trot（52维）�
   python sim2sim_sdk.py --mode walk --policy policy/go2/exported/policies/policy_1.pt
 
   # 对角步态模型（52维，含步态 clock）：
-  python sim2sim_sdk.py --mode trot --policy policy/go2_gait/exported/policies/policy_1.pt
+  python sim2sim_sdk.py --mode trot --policy policy/go2_trot/deploy
 """
 
 import argparse
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode",   choices=["walk", "trot"], default="trot",
                         help="walk=48维无步态clock，trot=52维含步态clock")
     parser.add_argument("--policy", type=str,
-                        default="policy/go2_gait/exported/policies/policy_1.pt",
+                        default="policy/go2_trot/deploy",
                         help="TorchScript 策略文件路径")
     args = parser.parse_args()
 

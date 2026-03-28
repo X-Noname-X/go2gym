@@ -1,0 +1,7 @@
+date:       2026-03-27 12:22
+config:     Go2TrotCfg
+iterations: 0 → 1500
+cmd_range:  lin_vel_x=[1.5, 2.0]
+notes:      重新从头训练
+best_iter:  1500
+exported:   (未导出，由 Mar27_15 继续)
