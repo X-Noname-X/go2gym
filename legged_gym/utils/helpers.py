@@ -114,14 +114,16 @@ def get_load_path(root, load_run=-1, checkpoint=-1):
     else:
         load_run = os.path.join(root, load_run)
 
+    checkpoints_dir = os.path.join(load_run, 'checkpoints')
+    model_dir = checkpoints_dir if os.path.isdir(checkpoints_dir) else load_run
     if checkpoint==-1:
-        models = [file for file in os.listdir(load_run) if 'model' in file]
+        models = [file for file in os.listdir(model_dir) if 'model' in file]
         models.sort(key=lambda m: '{0:0>15}'.format(m))
         model = models[-1]
     else:
-        model = "model_{}.pt".format(checkpoint) 
+        model = "model_{}.pt".format(checkpoint)
 
-    load_path = os.path.join(load_run, model)
+    load_path = os.path.join(model_dir, model)
     return load_path
 
 def update_cfg_from_args(env_cfg, cfg_train, args):

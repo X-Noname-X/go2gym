@@ -22,7 +22,7 @@ class Go2Cfg(LeggedRobotCfg):
 
     class control(LeggedRobotCfg.control):
         control_type = 'P'
-        stiffness = {'joint': 40.}     # 降低刚度，步态更自然
+        stiffness = {'joint': 40.}
         damping   = {'joint': 1.0}
         action_scale = 0.25            # 减小步幅，避免迈步过宽
         decimation = 4
