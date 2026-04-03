@@ -15,6 +15,9 @@ Sim2Sim（SDK 版，通用）：支持 walk（48维）和 gait/trot（52维）�
 import argparse
 import time
 import threading
+import sys
+import tty
+import termios
 import numpy as np
 import torch
 
@@ -36,7 +39,74 @@ CTRL_DT      = 0.02
 KP           = 40.0
 KD           = 1.0
 ACTION_SCALE = 0.25
-COMMAND      = np.array([0.5, 0.0, 0.0])   # [lin_vel_x, lin_vel_y, ang_vel_yaw]
+
+# ─────────── 键盘控制命令（运行时可修改）───────────
+# [lin_vel_x, lin_vel_y, ang_vel_yaw]
+_cmd_lock   = threading.Lock()
+_cmd        = np.array([0.0, 0.0, 0.0])   # 当前命令，按键按下时写入，松开归零
+_cmd_speed  = 0.5                          # 当前预设速度幅值（m/s 或 rad/s）
+_SPEED_STEP = 0.1                          # 每次调速的步长
+_SPEED_MIN  = 0.1
+_SPEED_MAX  = 2.0
+
+# 按键定义（WASD 移动，QE 转向，+- 调速）
+_KEYMAP = {
+    'w': np.array([ 1.0,  0.0,  0.0]),   # 前进
+    's': np.array([-1.0,  0.0,  0.0]),   # 后退
+    'a': np.array([ 0.0,  1.0,  0.0]),   # 左平移
+    'd': np.array([ 0.0, -1.0,  0.0]),   # 右平移
+    'q': np.array([ 0.0,  0.0,  1.0]),   # 左转
+    'e': np.array([ 0.0,  0.0, -1.0]),   # 右转
+}
+
+def _get_char_nonblock(fd, old_settings):
+    """读取一个字符，超时返回 None（非阻塞轮询）。"""
+    import select
+    rlist, _, _ = select.select([fd], [], [], 0.05)
+    if rlist:
+        return sys.stdin.read(1)
+    return None
+
+def _keyboard_thread():
+    """后台线程：按下按键 → 设置速度命令；松开（超时）→ 命令归零。"""
+    global _cmd_speed
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+    print("[键盘] W/S=前后  A/D=左右平移  Q/E=转向  ↑/↓(=/-)=调速  Ctrl+C退出")
+    try:
+        tty.setraw(fd)
+        last_key_time = 0.0
+        KEY_TIMEOUT = 0.15   # 超过此时间没有按键输入则命令归零
+
+        while True:
+            ch = _get_char_nonblock(fd, old_settings)
+            now = time.perf_counter()
+
+            if ch is not None:
+                if ch in _KEYMAP:
+                    with _cmd_lock:
+                        _cmd[:] = _KEYMAP[ch] * _cmd_speed
+                    last_key_time = now
+                elif ch in ('=', '+'):   # 提速
+                    _cmd_speed = min(_cmd_speed + _SPEED_STEP, _SPEED_MAX)
+                    print(f"\r[键盘] 速度调整为 {_cmd_speed:.1f} m/s          ", end='', flush=True)
+                elif ch in ('-', '_'):   # 减速
+                    _cmd_speed = max(_cmd_speed - _SPEED_STEP, _SPEED_MIN)
+                    print(f"\r[键盘] 速度调整为 {_cmd_speed:.1f} m/s          ", end='', flush=True)
+                elif ch == '\x03':       # Ctrl+C
+                    break
+            else:
+                # 超时未收到按键 → 停止
+                if now - last_key_time > KEY_TIMEOUT:
+                    with _cmd_lock:
+                        _cmd[:] = 0.0
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+def get_command() -> np.ndarray:
+    """主循环调用：获取当前命令的线程安全副本。"""
+    with _cmd_lock:
+        return _cmd.copy()
 
 # ─────────── 站立参数 ───────────
 STANDUP_DURATION  = 2.0   # 插值到站立姿态所需秒数
@@ -127,13 +197,13 @@ class Controller:
 
         # 公共部分（48维）
         obs = np.concatenate([
-            lin_vel  * OBS_SCALE_LIN_VEL,                     # [0:3]
-            gyro     * OBS_SCALE_ANG_VEL,                     # [3:6]
-            proj_grav,                                          # [6:9]
-            COMMAND  * CMD_SCALES,                             # [9:12]
-            (dof_pos - DEFAULT_Q_LEGGED) * OBS_SCALE_DOF_POS, # [12:24]
-            dof_vel  * OBS_SCALE_DOF_VEL,                     # [24:36]
-            self.last_action,                                   # [36:48]
+            lin_vel        * OBS_SCALE_LIN_VEL,                     # [0:3]
+            gyro           * OBS_SCALE_ANG_VEL,                     # [3:6]
+            proj_grav,                                                # [6:9]
+            get_command()  * CMD_SCALES,                             # [9:12]
+            (dof_pos - DEFAULT_Q_LEGGED) * OBS_SCALE_DOF_POS,       # [12:24]
+            dof_vel        * OBS_SCALE_DOF_VEL,                     # [24:36]
+            self.last_action,                                         # [36:48]
         ])
 
         # 步态模型额外追加 clock inputs（52维）
@@ -209,6 +279,11 @@ class Controller:
             time.sleep(0.01)
 
         self._standup()
+
+        # 启动键盘监听线程
+        kb_thread = threading.Thread(target=_keyboard_thread, daemon=True)
+        kb_thread.start()
+
         print("[sim2sim] 开始控制循环...")
 
         step = 0
