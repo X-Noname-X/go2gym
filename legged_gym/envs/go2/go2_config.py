@@ -30,7 +30,7 @@ class Go2Cfg(LeggedRobotCfg):
     class commands(LeggedRobotCfg.commands):
         curriculum = True
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x = [-1.0, 1.0]
+            lin_vel_x = [-2.0, 2.0]
  
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'

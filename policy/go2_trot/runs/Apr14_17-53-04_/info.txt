@@ -1,0 +1,8 @@
+date:       2026-04-14 17:53
+config:     Go2TrotCfg
+iterations: 1000 → 2000
+cmd_range:  lin_vel_x=[-2.0, 2.0]
+notes:      续训 Apr14_16-21-11_
+best_iter:  2000
+exported:   
+deploy: 
