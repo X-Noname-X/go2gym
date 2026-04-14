@@ -28,14 +28,10 @@ class Go2Cfg(LeggedRobotCfg):
         decimation = 4
     
     class commands(LeggedRobotCfg.commands):
-        curriculum = False
-        heading_command = False  # 直接指定 yaw 角速度，不用 heading 模式
+        curriculum = True
         class ranges(LeggedRobotCfg.commands.ranges):
-            lin_vel_x   = [1.5, 2.0]
-            lin_vel_y   = [0.0, 0.0]   # 不侧移
-            ang_vel_yaw = [0.0, 0.0]   # 不转向，直线跑
-            heading     = [0.0, 0.0]
-
+            lin_vel_x = [-1.0, 1.0]
+ 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/urdf/go2.urdf'
         name = "go2"
@@ -121,4 +117,4 @@ class Go2GaitCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = ''
         experiment_name = 'go2_trot'
-        max_iterations = 500
+        max_iterations = 1000
