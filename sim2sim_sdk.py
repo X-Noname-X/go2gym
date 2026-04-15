@@ -161,8 +161,9 @@ class Controller:
         self.low_state  = None
         self.high_state = None
 
-        self.last_action = np.zeros(12, dtype=np.float32)
-        self.gait_index  = 0.0
+        self.last_action  = np.zeros(12, dtype=np.float32)
+        self.gait_index   = 0.0
+        self.lin_vel_filt = np.zeros(3, dtype=np.float32)  # 低通滤波后的线速度
 
         # DDS 发布/订阅
         self.low_cmd_puber = ChannelPublisher(TOPIC_LOWCMD, LowCmd_)
@@ -186,7 +187,11 @@ class Controller:
         quat      = np.array(low.imu_state.quaternion)   # [w, x, y, z]
         gyro      = np.array(low.imu_state.gyroscope)    # 体坐标系角速度
         vel_world = np.array(high.velocity)              # 世界坐标系线速度
-        lin_vel   = quat_rotate_inverse(quat, vel_world)
+        lin_vel_raw = quat_rotate_inverse(quat, vel_world)
+        # 低通滤波：α=0.1 平滑速度噪声（z方向跳动尤为明显）
+        alpha = 0.1
+        self.lin_vel_filt = (1 - alpha) * self.lin_vel_filt + alpha * lin_vel_raw
+        lin_vel   = self.lin_vel_filt
         proj_grav = quat_rotate_inverse(quat, GRAVITY_VEC)
 
         # 关节状态重排为 legged_gym 顺序
@@ -218,6 +223,7 @@ class Controller:
             clock = np.sin(2.0 * np.pi * raw)
             obs = np.concatenate([obs, clock])                       # [48:52]
 
+        obs = np.clip(obs, -100.0, 100.0)   # 与训练 clip_observations 保持一致
         return obs.astype(np.float32)
 
     def _send_cmd(self, action_legged: np.ndarray):
